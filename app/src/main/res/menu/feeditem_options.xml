@@ -36,6 +36,17 @@
     </item>
 
     <item
+        android:id="@+id/add_to_playlist2_item"
+        custom:showAsAction="collapseActionView"
+        android:title="@string/add_to_playlist2_label">
+    </item>
+    <item
+        android:id="@+id/remove_from_playlist2_item"
+        custom:showAsAction="collapseActionView"
+        android:title="@string/remove_from_playlist2_label">
+    </item>
+
+    <item
         android:id="@+id/add_to_favorites_item"
         android:menuCategory="container"
         android:title="@string/add_to_favorite_label" />

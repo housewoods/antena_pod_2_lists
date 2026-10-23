@@ -7,6 +7,12 @@
     <string name="episodes_label">Episoden</string>
     <string name="home_label">Start</string>
     <string name="queue_label">Warteschlange</string>
+    <string name="playlist2_label">Playliste 2</string>
+    <string name="playlist2_label_short">Pl2</string>
+    <string name="add_to_playlist2_label">Zu Playliste 2 hinzufügen</string>
+    <string name="remove_from_playlist2_label">Aus Playliste 2 entfernen</string>
+    <string name="clear_playlist2_label">Playliste 2 leeren</string>
+    <string name="clear_playlist2_confirmation_msg">Bitte bestätigen Sie, dass Sie ALLE Episoden aus Playliste 2 entfernen möchten.</string>
     <string name="inbox_label">Posteingang</string>
     <string name="favorite_episodes_label">Favoriten</string>
     <string name="settings_label">Einstellungen</string>

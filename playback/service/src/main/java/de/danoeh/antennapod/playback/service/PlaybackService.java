@@ -1083,7 +1083,7 @@ public class PlaybackService extends MediaBrowserServiceCompat {
             return null;
         }
         FeedItem nextItem;
-        nextItem = DBReader.getNextInQueue(item);
+        nextItem = DBReader.getNextInQueueOrPlaylist2(item);
 
         if (nextItem == null || nextItem.getMedia() == null) {
             PlaybackPreferences.writeNoMediaPlaying();

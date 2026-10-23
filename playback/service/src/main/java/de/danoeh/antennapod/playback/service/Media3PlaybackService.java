@@ -841,7 +841,7 @@ public class Media3PlaybackService extends MediaLibraryService {
         }
         int startPosition = playbackStartPosition;
         queueLoaderDisposable = Maybe.fromCallable(() -> {
-            FeedItem nextItem = DBReader.getNextInQueue(item);
+            FeedItem nextItem = DBReader.getNextInQueueOrPlaylist2(item);
             boolean hasNext = nextItem != null && nextItem.getMedia() != null;
             updateDatabaseAfterPlayback(media, startPosition, ended, wasSkipped, hasNext);
             if (hasNext) {

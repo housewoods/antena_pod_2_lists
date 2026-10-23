@@ -55,7 +55,7 @@ public class PodDBAdapter {
 
     private static final String TAG = "PodDBAdapter";
     public static final String DATABASE_NAME = "Antennapod.db";
-    public static final int VERSION = 3110000;
+    public static final int VERSION = 3110001;
 
     /**
      * Maximum number of arguments for IN-operator.
@@ -136,6 +136,7 @@ public class PodDBAdapter {
     public static final String TABLE_NAME_FEED_MEDIA = "FeedMedia";
     public static final String TABLE_NAME_DOWNLOAD_LOG = "DownloadLog";
     public static final String TABLE_NAME_QUEUE = "Queue";
+    public static final String TABLE_NAME_PLAYLIST2 = "Playlist2";
     public static final String TABLE_NAME_SIMPLECHAPTERS = "SimpleChapters";
     public static final String TABLE_NAME_FAVORITES = "Favorites";
 
@@ -217,6 +218,10 @@ public class PodDBAdapter {
             + TABLE_NAME_QUEUE + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
             + KEY_FEEDITEM + " INTEGER," + KEY_FEED + " INTEGER)";
 
+    static final String CREATE_TABLE_PLAYLIST2 = "CREATE TABLE "
+            + TABLE_NAME_PLAYLIST2 + "(" + KEY_ID + " INTEGER PRIMARY KEY,"
+            + KEY_FEEDITEM + " INTEGER," + KEY_FEED + " INTEGER)";
+
     private static final String CREATE_TABLE_SIMPLECHAPTERS = "CREATE TABLE "
             + TABLE_NAME_SIMPLECHAPTERS + " (" + TABLE_PRIMARY_KEY + KEY_TITLE
             + " TEXT," + KEY_START + " INTEGER," + KEY_FEEDITEM + " INTEGER,"
@@ -237,6 +242,10 @@ public class PodDBAdapter {
 
     static final String CREATE_INDEX_QUEUE_FEEDITEM = "CREATE INDEX "
             + TABLE_NAME_QUEUE + "_" + KEY_FEEDITEM + " ON " + TABLE_NAME_QUEUE + " ("
+            + KEY_FEEDITEM + ")";
+
+    static final String CREATE_INDEX_PLAYLIST2_FEEDITEM = "CREATE INDEX "
+            + TABLE_NAME_PLAYLIST2 + "_" + KEY_FEEDITEM + " ON " + TABLE_NAME_PLAYLIST2 + " ("
             + KEY_FEEDITEM + ")";
 
     static final String CREATE_INDEX_FEEDMEDIA_FEEDITEM = "CREATE INDEX "
@@ -261,7 +270,8 @@ public class PodDBAdapter {
             TABLE_NAME_DOWNLOAD_LOG,
             TABLE_NAME_QUEUE,
             TABLE_NAME_SIMPLECHAPTERS,
-            TABLE_NAME_FAVORITES
+            TABLE_NAME_FAVORITES,
+            TABLE_NAME_PLAYLIST2
     };
 
     public static final String SELECT_KEY_ITEM_ID = "item_id";
@@ -269,6 +279,7 @@ public class PodDBAdapter {
     public static final String SELECT_KEY_FEED_ID = "feed_id";
     public static final String SELECT_KEY_IS_FAVORITE = "is_favorite";
     public static final String SELECT_KEY_IS_IN_QUEUE = "is_in_queue";
+    public static final String SELECT_KEY_IS_IN_PLAYLIST2 = "is_in_playlist2";
 
     private static final String KEYS_FEED_ITEM_WITHOUT_DESCRIPTION =
             TABLE_NAME_FEED_ITEMS + "." + KEY_ID + " AS " + SELECT_KEY_ITEM_ID + ", "
@@ -290,7 +301,9 @@ public class PodDBAdapter {
             + TABLE_NAME_FEED_ITEMS + "." + KEY_ID + " IN (SELECT " + TABLE_NAME_FAVORITES + "." + KEY_FEEDITEM
             + " FROM " + TABLE_NAME_FAVORITES + ") AS " + SELECT_KEY_IS_FAVORITE + ", "
             + TABLE_NAME_FEED_ITEMS + "." + KEY_ID + " IN (SELECT " + TABLE_NAME_QUEUE + "." + KEY_FEEDITEM
-            + " FROM " + TABLE_NAME_QUEUE + ") AS " + SELECT_KEY_IS_IN_QUEUE;
+            + " FROM " + TABLE_NAME_QUEUE + ") AS " + SELECT_KEY_IS_IN_QUEUE + ", "
+            + TABLE_NAME_FEED_ITEMS + "." + KEY_ID + " IN (SELECT " + TABLE_NAME_PLAYLIST2 + "." + KEY_FEEDITEM
+            + " FROM " + TABLE_NAME_PLAYLIST2 + ") AS " + SELECT_KEY_IS_IN_PLAYLIST2;
 
     private static final String KEYS_FEED_MEDIA =
             TABLE_NAME_FEED_MEDIA + "." + KEY_ID + " AS " + SELECT_KEY_MEDIA_ID + ", "
@@ -910,6 +923,69 @@ public class PodDBAdapter {
 
     public void clearQueue() {
         db.delete(TABLE_NAME_QUEUE, null, null);
+    }
+
+    public void setPlaylist2(List<FeedItem> playlist) {
+        ContentValues values = new ContentValues();
+        try {
+            db.beginTransactionNonExclusive();
+            db.delete(TABLE_NAME_PLAYLIST2, null, null);
+            for (int i = 0; i < playlist.size(); i++) {
+                FeedItem item = playlist.get(i);
+                values.put(KEY_ID, i);
+                values.put(KEY_FEEDITEM, item.getId());
+                values.put(KEY_FEED, item.getFeed().getId());
+                db.insertWithOnConflict(TABLE_NAME_PLAYLIST2, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+            }
+            db.setTransactionSuccessful();
+        } catch (SQLException e) {
+            Log.e(TAG, Log.getStackTraceString(e));
+        } finally {
+            db.endTransaction();
+        }
+    }
+
+    public void clearPlaylist2() {
+        db.delete(TABLE_NAME_PLAYLIST2, null, null);
+    }
+
+    public final Cursor getPlaylist2Cursor() {
+        final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
+                + " FROM " + TABLE_NAME_PLAYLIST2
+                + " INNER JOIN " + TABLE_NAME_FEED_ITEMS
+                + " ON " + SELECT_KEY_ITEM_ID + " = " + TABLE_NAME_PLAYLIST2 + "." + KEY_FEEDITEM
+                +  JOIN_FEED_ITEM_AND_MEDIA
+                + " ORDER BY " + TABLE_NAME_PLAYLIST2 + "." + KEY_ID;
+        return db.rawQuery(query, null);
+    }
+
+    public Cursor getPlaylist2IDCursor() {
+        return db.query(TABLE_NAME_PLAYLIST2, new String[]{KEY_FEEDITEM}, null, null, null, null,
+                KEY_ID + " ASC", null);
+    }
+
+    public Cursor getNextInPlaylist2(final FeedItem item) {
+        final String query = "SELECT " + KEYS_FEED_ITEM_WITHOUT_DESCRIPTION + ", " + KEYS_FEED_MEDIA
+                + " FROM " + TABLE_NAME_PLAYLIST2
+                + " INNER JOIN " + TABLE_NAME_FEED_ITEMS
+                + " ON " + SELECT_KEY_ITEM_ID + " = " + TABLE_NAME_PLAYLIST2 + "." + KEY_FEEDITEM
+                +  JOIN_FEED_ITEM_AND_MEDIA
+                + " WHERE Playlist2.ID > (SELECT Playlist2.ID FROM Playlist2 WHERE Playlist2.FeedItem = "
+                +  item.getId()
+                + ")"
+                + " ORDER BY Playlist2.ID"
+                + " LIMIT 1";
+        return db.rawQuery(query, null);
+    }
+
+    public int getPlaylist2Size() {
+        final String query = String.format("SELECT COUNT(%s) FROM %s", KEY_ID, TABLE_NAME_PLAYLIST2);
+        try (Cursor c = db.rawQuery(query, null)) {
+            if (c.moveToFirst()) {
+                return c.getInt(0);
+            }
+            return 0;
+        }
     }
 
     /**
@@ -1599,12 +1675,14 @@ public class PodDBAdapter {
             db.execSQL(CREATE_TABLE_QUEUE);
             db.execSQL(CREATE_TABLE_SIMPLECHAPTERS);
             db.execSQL(CREATE_TABLE_FAVORITES);
+            db.execSQL(CREATE_TABLE_PLAYLIST2);
 
             db.execSQL(CREATE_INDEX_FEEDITEMS_FEED);
             db.execSQL(CREATE_INDEX_FEEDITEMS_PUBDATE);
             db.execSQL(CREATE_INDEX_FEEDITEMS_READ);
             db.execSQL(CREATE_INDEX_FEEDMEDIA_FEEDITEM);
             db.execSQL(CREATE_INDEX_QUEUE_FEEDITEM);
+            db.execSQL(CREATE_INDEX_PLAYLIST2_FEEDITEM);
             db.execSQL(CREATE_INDEX_SIMPLECHAPTERS_FEEDITEM);
         }
 

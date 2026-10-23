@@ -214,6 +214,54 @@ public final class DBReader {
     }
 
     /**
+     * Loads the FeedItems of the second playlist.
+     *
+     * @return A list of FeedItems sorted by playlist order.
+     */
+    @NonNull
+    public static synchronized List<FeedItem> getPlaylist2() {
+        Log.d(TAG, "getPlaylist2() called");
+
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getPlaylist2Cursor())) {
+            List<FeedItem> items = extractItemlistFromCursor(cursor);
+            loadFeedDataOfFeedItemList(items);
+            return items;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
+     * Returns the item that is played after the given one, using the queue first
+     * and the second playlist as fallback playback source.
+     */
+    @Nullable
+    public static synchronized FeedItem getNextInQueueOrPlaylist2(FeedItem item) {
+        FeedItem next = getNextInQueue(item);
+        if (next != null) {
+            return next;
+        }
+        Log.d(TAG, "getNextInQueueOrPlaylist2() - not found in queue, checking playlist 2");
+        PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        try (FeedItemCursor cursor = new FeedItemCursor(adapter.getNextInPlaylist2(item))) {
+            List<FeedItem> list = extractItemlistFromCursor(cursor);
+            if (!list.isEmpty()) {
+                FeedItem nextItem = list.get(0);
+                loadFeedDataOfFeedItemList(list);
+                return nextItem;
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            adapter.close();
+        }
+    }
+
+    /**
      *
      * @param offset The first episode that should be loaded.
      * @param limit The maximum number of episodes that should be loaded.

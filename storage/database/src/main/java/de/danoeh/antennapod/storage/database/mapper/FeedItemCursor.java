@@ -31,6 +31,7 @@ public class FeedItemCursor extends CursorWrapper {
     private final int indexPodcastIndexTranscriptUrl;
     private final int indexIsFavorite;
     private final int indexIsInQueue;
+    private final int indexIsInPlaylist2;
 
     public FeedItemCursor(Cursor cursor) {
         super(new FeedMediaCursor(cursor));
@@ -53,6 +54,7 @@ public class FeedItemCursor extends CursorWrapper {
         indexPodcastIndexTranscriptUrl = cursor.getColumnIndexOrThrow(PodDBAdapter.KEY_PODCASTINDEX_TRANSCRIPT_URL);
         indexIsFavorite = cursor.getColumnIndexOrThrow(PodDBAdapter.SELECT_KEY_IS_FAVORITE);
         indexIsInQueue = cursor.getColumnIndexOrThrow(PodDBAdapter.SELECT_KEY_IS_IN_QUEUE);
+        indexIsInPlaylist2 = cursor.getColumnIndexOrThrow(PodDBAdapter.SELECT_KEY_IS_IN_PLAYLIST2);
     }
 
     /**
@@ -84,6 +86,9 @@ public class FeedItemCursor extends CursorWrapper {
         }
         if (getInt(indexIsInQueue) > 0) {
             item.addTag(FeedItem.TAG_QUEUE);
+        }
+        if (getInt(indexIsInPlaylist2) > 0) {
+            item.addTag(FeedItem.TAG_PLAYLIST2);
         }
         return item;
     }

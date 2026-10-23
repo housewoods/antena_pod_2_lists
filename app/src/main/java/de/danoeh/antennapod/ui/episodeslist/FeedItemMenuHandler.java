@@ -71,6 +71,8 @@ public class FeedItemMenuHandler {
         boolean canDownload = false;
         boolean canAddFavorite = false;
         boolean canRemoveFavorite = false;
+        boolean canAddToPlaylist2 = false;
+        boolean canRemoveFromPlaylist2 = false;
         boolean canShowTranscript = false;
         boolean canShowSocialInteract = false;
 
@@ -91,6 +93,8 @@ public class FeedItemMenuHandler {
             canDownload |= hasMedia && !item.getMedia().isDownloaded() && !isDownloading;
             canAddFavorite |= !item.isTagged(FeedItem.TAG_FAVORITE);
             canRemoveFavorite |= item.isTagged(FeedItem.TAG_FAVORITE);
+            canAddToPlaylist2 |= hasMedia && !item.isTagged(FeedItem.TAG_PLAYLIST2);
+            canRemoveFromPlaylist2 |= item.isTagged(FeedItem.TAG_PLAYLIST2);
             canShowTranscript |= item.hasTranscript();
             canShowSocialInteract |= item.getSocialInteractUrl() != null;
         }
@@ -108,6 +112,8 @@ public class FeedItemMenuHandler {
         setItemVisibility(menu, R.id.skip_episode_item, canSkip);
         setItemVisibility(menu, R.id.remove_from_queue_item, canRemoveFromQueue);
         setItemVisibility(menu, R.id.add_to_queue_item, canAddToQueue);
+        setItemVisibility(menu, R.id.add_to_playlist2_item, canAddToPlaylist2);
+        setItemVisibility(menu, R.id.remove_from_playlist2_item, canRemoveFromPlaylist2);
         setItemVisibility(menu, R.id.visit_website_item, canVisitWebsite);
         setItemVisibility(menu, R.id.share_item, canShare);
         setItemVisibility(menu, R.id.remove_inbox_item, canRemoveFromInbox);
@@ -200,6 +206,10 @@ public class FeedItemMenuHandler {
             DBWriter.addQueueItem(context, selectedItem);
         } else if (menuItemId == R.id.remove_from_queue_item) {
             DBWriter.removeQueueItem(context, true, selectedItem);
+        } else if (menuItemId == R.id.add_to_playlist2_item) {
+            DBWriter.addPlaylist2Items(Collections.singletonList(selectedItem));
+        } else if (menuItemId == R.id.remove_from_playlist2_item) {
+            DBWriter.removePlaylist2Items(Collections.singletonList(selectedItem));
         } else if (menuItemId == R.id.add_to_favorites_item) {
             DBWriter.addFavoriteItems(Collections.singletonList(selectedItem));
         } else if (menuItemId == R.id.remove_from_favorites_item) {

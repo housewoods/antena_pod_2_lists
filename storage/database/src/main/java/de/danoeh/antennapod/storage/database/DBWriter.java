@@ -39,6 +39,7 @@ import de.danoeh.antennapod.event.FeedItemEvent;
 import de.danoeh.antennapod.event.FeedListUpdateEvent;
 import de.danoeh.antennapod.event.playback.PlaybackHistoryEvent;
 import de.danoeh.antennapod.event.QueueEvent;
+import de.danoeh.antennapod.event.Playlist2Event;
 import de.danoeh.antennapod.event.FeedEvent;
 import de.danoeh.antennapod.storage.preferences.PlaybackPreferences;
 import de.danoeh.antennapod.storage.preferences.UserPreferences;
@@ -460,6 +461,145 @@ public class DBWriter {
             adapter.close();
             EventBus.getDefault().post(QueueEvent.cleared());
         });
+    }
+
+    /**
+     * Appends FeedItem objects to the end of the second playlist.
+     * If a FeedItem is already in the playlist, it will not change its position.
+     *
+     * @param items FeedItem objects that should be added to the second playlist.
+     */
+    public static Future<?> addPlaylist2Items(final List<FeedItem> items) {
+        if (items.isEmpty()) {
+            return null;
+        }
+        for (FeedItem item : items) {
+            item.addTag(FeedItem.TAG_PLAYLIST2);
+        }
+        return runOnDbThread(() -> {
+            final PodDBAdapter adapter = PodDBAdapter.getInstance().open();
+            final List<FeedItem> playlist = DBReader.getPlaylist2();
+            List<FeedItem> addedItems = new ArrayList<>();
+            for (FeedItem item : items) {
+                if (itemListContains(playlist, item.getId()) || !item.hasMedia()) {
+                    continue;
+                }
+                playlist.add(item);
+                addedItems.add(item);
+            }
+            if (!addedItems.isEmpty()) {
+                adapter.setPlaylist2(playlist);
+                for (FeedItem item : addedItems) {
+                    EventBus.getDefault().post(Playlist2Event.added(item, playlist.size() - 1));
+                }
+                EventBus.getDefault().post(new FeedItemEvent(addedItems, false));
+            }
+            adapter.close();
+        });
+    }
+
+    /**
+     * Removes FeedItem objects from the second playlist.
+     *
+     * @param items FeedItem objects that should be removed from the second playlist.
+     */
+    public static Future<?> removePlaylist2Items(final List<FeedItem> items) {
+        if (items.isEmpty()) {
+            return null;
+        }
+        for (FeedItem item : items) {
+            item.removeTag(FeedItem.TAG_PLAYLIST2);
+        }
+        return runOnDbThread(() -> {
+            final PodDBAdapter adapter = PodDBAdapter.getInstance().open();
+            final List<FeedItem> playlist = DBReader.getPlaylist2();
+            List<FeedItem> removedItems = new ArrayList<>();
+            for (FeedItem item : items) {
+                int position = indexInItemList(playlist, item.getId());
+                if (position >= 0) {
+                    playlist.remove(position);
+                    removedItems.add(item);
+                }
+            }
+            if (!removedItems.isEmpty()) {
+                adapter.setPlaylist2(playlist);
+                for (FeedItem item : removedItems) {
+                    EventBus.getDefault().post(Playlist2Event.removed(item));
+                }
+                EventBus.getDefault().post(new FeedItemEvent(removedItems, false));
+            }
+            adapter.close();
+        });
+    }
+
+    /**
+     * Removes all FeedItem objects from the second playlist.
+     */
+    public static Future<?> clearPlaylist2() {
+        return runOnDbThread(() -> {
+            PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            adapter.clearPlaylist2();
+            adapter.close();
+            EventBus.getDefault().post(Playlist2Event.cleared());
+        });
+    }
+
+    /**
+     * Changes the position of a FeedItem in the second playlist.
+     *
+     * @param from Source index.
+     * @param to   Destination index.
+     */
+    public static Future<?> movePlaylist2Item(final int from, final int to) {
+        return runOnDbThread(() -> {
+            final PodDBAdapter adapter = PodDBAdapter.getInstance();
+            adapter.open();
+            final List<FeedItem> playlist = DBReader.getPlaylist2();
+
+            if (from >= 0 && from < playlist.size() && to >= 0 && to < playlist.size()) {
+                final FeedItem item = playlist.remove(from);
+                playlist.add(to, item);
+
+                adapter.setPlaylist2(playlist);
+                EventBus.getDefault().post(Playlist2Event.moved(item, to));
+            }
+            adapter.close();
+        });
+    }
+
+    public static Future<?> movePlaylist2ItemsToTop(final List<FeedItem> items) {
+        return runOnDbThread(() -> movePlaylist2ItemsSynchronous(true, items));
+    }
+
+    public static Future<?> movePlaylist2ItemsToBottom(final List<FeedItem> items) {
+        return runOnDbThread(() -> movePlaylist2ItemsSynchronous(false, items));
+    }
+
+    private static void movePlaylist2ItemsSynchronous(final boolean moveToTop, final List<FeedItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+
+        final PodDBAdapter adapter = PodDBAdapter.getInstance();
+        adapter.open();
+        final List<FeedItem> playlist = DBReader.getPlaylist2();
+
+        List<FeedItem> selectedItems = moveToTop ? new ArrayList<>(items) : items;
+        if (moveToTop) {
+            Collections.reverse(selectedItems);
+        }
+
+        playlist.removeAll(selectedItems);
+
+        for (FeedItem item : selectedItems) {
+            int newIndex = moveToTop ? 0 : playlist.size();
+            playlist.add(newIndex, item);
+        }
+
+        adapter.setPlaylist2(playlist);
+        EventBus.getDefault().post(Playlist2Event.setPlaylist(playlist));
+        adapter.close();
     }
 
     /**
